@@ -4,9 +4,18 @@ import { v4 as uuidv4 } from 'uuid';
 
 export default function Home() {
   const [quote, setQuote] = React.useState("");
+  const [letters, setLetters] = React.useState([]);
   const [inputValue, setInputValue] = React.useState("");
   const inputRef = React.createRef();
-  const [letters, setLetters] = React.useState([]);
+  const [prevInputValue, setPrevInputValue] = React.useState("");
+
+  const [startTime, setStartTime] = React.useState();
+  const [currentTime, setCurrentTime] = React.useState();
+  const [prevWordCount, setPrevWordCount] = React.useState(0); // word count of previous quotes
+  const [wpm, setWpm] = React.useState(0);
+  const [accuracy, setAccuracy] = React.useState(1);
+  const [charsTyped, setCharsTyped] = React.useState(0);
+  const [correctCharsTyped, setCorrectCharsTyped] = React.useState(0);
 
   // Reset + new quote
   const newQuote = async () => {
@@ -34,13 +43,36 @@ export default function Home() {
     inputRef.current.focus();
   }
 
-  // On start
+  // Format timer ms
+  const formatTime = (timeInMs) => {
+    if (isNaN(timeInMs) || timeInMs < 0) return '00:00';
+    function pad(n, z) {
+      z = z || 2;
+      return ('00' + n).slice(-z);
+    }
+    let ms = timeInMs % 1000;
+    timeInMs = (timeInMs - ms) / 1000;
+    let secs = timeInMs % 60;
+    timeInMs = (timeInMs - secs) / 60;
+    let mins = timeInMs % 60;
+    let hrs = (timeInMs - mins) / 60;
+    return `${hrs>0 ? `${pad(hrs)} ` : ``}${pad(mins)}:${pad(secs)}`; // .${pad(ms, 3)}
+  }
+
+  // On start (runs once)
   React.useEffect(() => {
+    setStartTime(new Date().getTime()); // sets start time at beginning of session
+    const timerInterval = setInterval(() => setCurrentTime((new Date).getTime()), 1000);
     newQuote();
+
+    return () => {
+      clearInterval(timerInterval);
+    }
   }, []);
 
   // On new quote
   React.useEffect(() => {
+    setLetters([]);
     let initialLetters = [];
     for (let i=0; i<quote.length; i++) {
       initialLetters.push(
@@ -101,9 +133,36 @@ export default function Home() {
         setLetters(newLetters);
       }
     }
+
+    // Update accuracy
+    if (inputValue.length > prevInputValue.length) { // Added chars
+      let changed = inputValue.substring(prevInputValue.length);
+      for (let i=0; i<changed.length; i++) {
+        if (prevInputValue.length+i>=letters.length) break;
+        if (letters[prevInputValue.length+i].status === 'correct') {
+          setCorrectCharsTyped(correctCharsTyped+1);
+        }
+        setCharsTyped(charsTyped+1);
+      }
+    }
+    let newAccuracy = (correctCharsTyped/charsTyped*100).toFixed();
+    setAccuracy(!isNaN(newAccuracy) ? newAccuracy : 100);
+    setPrevInputValue(inputValue);
+
     // Check if finished quote
-    if (inputValue === quote && quote !== '') newQuote();
+    if (inputValue === quote && quote !== '') {
+      setPrevWordCount(prevWordCount + quote.split(' ').length);
+      setPrevInputValue('');
+      newQuote();
+    }
   }, [inputValue]);
+
+  React.useEffect(() => {
+    // Calc wpm
+    const durationInMins = (currentTime - startTime) / 60000.0;
+    const newWPM = Math.round((prevWordCount + inputValue.split(' ').length)/durationInMins);
+    setWpm(!isNaN(newWPM) && !(prevWordCount === 0 && inputValue === '') ? newWPM : 0);
+  }, [currentTime]);
   
   return (
     <>
@@ -123,7 +182,7 @@ export default function Home() {
           ref={inputRef}
           data-gramm="false"
         ></textarea>
-        <span className={styles.stats}><b>--</b> WPM | <b>--%</b> ACC | <b>--:--.--</b> TIME</span>
+        <span className={styles.stats}><b>{wpm}</b> WPM | <b>{accuracy}%</b> ACC | <b>{formatTime(currentTime-startTime)}</b> TIME</span>
       </div>
     </>
   )
