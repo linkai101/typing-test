@@ -1,65 +1,130 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import React from 'react';
+import styles from '../styles/Home.module.css';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function Home() {
+  const [quote, setQuote] = React.useState("");
+  const [inputValue, setInputValue] = React.useState("");
+  const inputRef = React.createRef();
+  const [letters, setLetters] = React.useState([]);
+
+  // Reset + new quote
+  const newQuote = async () => {
+    setInputValue("");
+    const newQuote = await getQuote();
+    setQuote(newQuote);
+  }
+  
+  // Fetch quote
+  const getQuote = () => {
+    return fetch('http://api.quotable.io/random')
+      .then(response => response.json())
+      .then(data => data.content);
+  }
+
+  // Get letter classes
+  const getLetterClass = (letter) => {
+    let className = styles[letter.status];
+    if (letter.current) className += ' ' + styles.current;
+    return className;
+  }
+
+  // Focus
+  const focus = () => {
+    inputRef.current.focus();
+  }
+
+  // On start
+  React.useEffect(() => {
+    newQuote();
+  }, []);
+
+  // On new quote
+  React.useEffect(() => {
+    let initialLetters = [];
+    for (let i=0; i<quote.length; i++) {
+      initialLetters.push(
+        { 
+          value: quote.charAt(i), 
+          status: 'untyped', 
+          current: i<quote.split(' ')[0].length, 
+          id: uuidv4() 
+        }
+      );
+    }
+    setLetters(initialLetters);
+    focus();
+  }, [quote]);
+
+  // On user type
+  React.useEffect(() => {
+    // Check typed characters
+    for (let i=0; i<inputValue.length; i++) {
+      if (i>=letters.length) break;
+      if (inputValue.charAt(i) === letters[i].value) {
+        let newLetters = [...letters];
+        newLetters[i].status = 'correct';
+        setLetters(newLetters);
+      } else {
+        let newLetters = [...letters];
+        newLetters[i].status = 'incorrect';
+        setLetters(newLetters);
+      }
+    }
+    // Fill in untyped characters
+    for (let i=inputValue.length; i<letters.length && i>=0; i++) {
+      let newLetters = [...letters];
+      newLetters[i].status = 'untyped';
+      setLetters(newLetters);
+    }
+    // Find current word
+    for (let i=0; i<quote.length; i++) { // Removing all current word letters
+      if (i>=letters.length) break;
+      let newLetters = [...letters];
+      newLetters[i].current = false;
+      setLetters(newLetters);
+    }
+    let remainingQuote = quote.substring(inputValue.length); // Adding in current word letters
+    for (let i=0; i<remainingQuote.length; i++) {
+      if (i>=letters.length) break;
+      if (i<remainingQuote.split(' ')[0].length) {
+        let newLetters = [...letters];
+        newLetters[inputValue.length+i].current = 'true';
+        setLetters(newLetters);
+      }
+    }
+    if (inputValue.charAt(inputValue.length-1) !== ' ') {
+      for (let i=inputValue.length-1; inputValue.charAt(i) !== ' ' && i>=0; i--) {
+        if (i>=letters.length) break;
+        let newLetters = [...letters];
+        newLetters[i].current = 'true';
+        setLetters(newLetters);
+      }
+    }
+    // Check if finished quote
+    if (inputValue === quote && quote !== '') newQuote();
+  }, [inputValue]);
+  
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+    <>
+      <div className={styles.container}>
+        <div className={styles.quote}>
+          {(quote == "") ? "Loading..." : letters.map(letter => 
+            <span 
+              className={getLetterClass(letter)} 
+              key={letter.id}
+            >{letter.value}</span>
+          )}
         </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
+        <textarea
+          className={styles.input}
+          value={inputValue}
+          onChange={(e) => {if (quote !== "") setInputValue(e.target.value)}}
+          ref={inputRef}
+          data-gramm="false"
+        ></textarea>
+        <span className={styles.stats}><b>--</b> WPM | <b>--%</b> ACC | <b>--:--.--</b> TIME</span>
+      </div>
+    </>
   )
 }
