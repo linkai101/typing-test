@@ -17,7 +17,7 @@ export default function Home() {
   
   // Fetch quote
   const getQuote = () => {
-    return fetch('http://api.quotable.io/random')
+    return fetch('https://api.quotable.io/random')
       .then(response => response.json())
       .then(data => data.content);
   }
