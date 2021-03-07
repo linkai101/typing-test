@@ -5,7 +5,7 @@ function MyApp({ Component, pageProps }) {
   return (
     <>
       <Head>
-        <title>Typing Test (beta)</title>
+        <title>Typing Test</title>
         <link rel="icon" href="/favicon.ico" />
         <meta name="theme-color" content="#000000" />
         <meta

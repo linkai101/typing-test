@@ -56,7 +56,7 @@ export default function Home() {
     timeInMs = (timeInMs - secs) / 60;
     let mins = timeInMs % 60;
     let hrs = (timeInMs - mins) / 60;
-    return `${hrs>0 ? `${pad(hrs)} ` : ``}${pad(mins)}:${pad(secs)}`; // .${pad(ms, 3)}
+    return `${hrs>0 ? `${pad(hrs)}:` : ``}${pad(mins)}:${pad(secs)}`; // .${pad(ms, 3)}
   }
 
   // On start (runs once)
